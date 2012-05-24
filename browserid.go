@@ -100,5 +100,5 @@ func isGood(value string) bool {
 	case failId:
 		return false
 	}
-	return uint(len(value) / 2) == *idLen
+	return uint(len(value)/2) == *idLen
 }
