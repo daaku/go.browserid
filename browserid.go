@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"github.com/nshah/go.domain"
+	"github.com/nshah/go.trustforward"
 	"log"
 	"net"
 	"net/http"
@@ -53,7 +54,7 @@ func Get(w http.ResponseWriter, r *http.Request) string {
 		Value:   id,
 		Path:    "/",
 		Expires: time.Now().Add(*maxAge),
-		Domain:  cookieDomain(r.Host),
+		Domain:  cookieDomain(trustforward.Host(r)),
 	}
 	r.AddCookie(cookie)
 	http.SetCookie(w, cookie)
