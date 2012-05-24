@@ -37,21 +37,26 @@ func Get(w http.ResponseWriter, r *http.Request) string {
 	if err != nil && err != http.ErrNoCookie {
 		log.Printf("Error reading browserid cookie: %s", err)
 	}
-	if cookie != nil && isGood(cookie.Value) {
-		return cookie.Value
+	if cookie != nil {
+		if isGood(cookie.Value) {
+			return cookie.Value
+		}
+		log.Printf("Bad cookie value: %s", cookie.Value)
 	}
 	id, err := genID()
 	if err != nil {
 		log.Printf("Error generating browserid: %s", err)
 		return failId
 	}
-	http.SetCookie(w, &http.Cookie{
+	cookie = &http.Cookie{
 		Name:    *cookieName,
 		Value:   id,
 		Path:    "/",
 		Expires: time.Now().Add(*maxAge),
 		Domain:  cookieDomain(r.Host),
-	})
+	}
+	r.AddCookie(cookie)
+	http.SetCookie(w, cookie)
 	return id
 }
 
@@ -95,5 +100,5 @@ func isGood(value string) bool {
 	case failId:
 		return false
 	}
-	return uint(len(value)) == *idLen
+	return uint(len(value) / 2) == *idLen
 }
