@@ -23,7 +23,7 @@ var (
 	maxAge = flag.Duration(
 		"browserid.max-age", time.Hour*24*365*10, "Max age of the cookie.")
 	idLen = flag.Uint(
-		"browserid.len", 16, "Number of bytes to use for ID.")
+		"browserid.len", 16, "Number of random bytes to use for ID.")
 )
 
 // Check if a ID has been set.
