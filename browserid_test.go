@@ -1,7 +1,7 @@
 package browserid_test
 
 import (
-	"github.com/nshah/go.browserid"
+	"github.com/daaku/go.browserid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
