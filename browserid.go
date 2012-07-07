@@ -1,5 +1,6 @@
 // Package browserid provides a way to have a shared identifier for an
-// incoming request and allows for it to persist via cookies.
+// incoming request and allows for it to persist via cookies. Think of
+// it like assigning a UUID to each browser/client.
 package browserid
 
 import (
