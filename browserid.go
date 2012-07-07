@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-const failId = "deadbeef0000000000000000deadbeef"
+const FailID = "deadbeef0000000000000000deadbeef"
 
 var (
 	cookieName = flag.String(
@@ -48,7 +48,7 @@ func Get(w http.ResponseWriter, r *http.Request) string {
 	id, err := genID()
 	if err != nil {
 		log.Printf("Error generating browserid: %s", err)
-		return failId
+		return FailID
 	}
 	cookie = &http.Cookie{
 		Name:    *cookieName,
@@ -99,7 +99,7 @@ func isGood(value string) bool {
 	switch value {
 	case "":
 		return false
-	case failId:
+	case FailID:
 		return false
 	}
 	return uint(len(value)/2) == *idLen
