@@ -7,67 +7,119 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
-	"github.com/daaku/go.domain"
-	"github.com/daaku/go.trustforward"
-	"log"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"code.google.com/p/go.net/publicsuffix"
+	"github.com/daaku/go.trustforward"
 )
 
-const FailID = "deadbeef0000000000000000deadbeef"
+// Define a new Cookie via flags. For example, given a name like "browserid",
+// you will get these flags and default values along with the crypto.Rand
+// reader as Rand:
+//
+//   browserid.cookie=z
+//   browserid.length=16
+//   browserid.max-age=87600h
+func CookieFlag(name string) *Cookie {
+	const cn = "z"
+	const tenYears = time.Hour * 24 * 365 * 10
+	const length = 16
+	c := &Cookie{
+		Name:   cn,
+		MaxAge: tenYears,
+		Length: length,
+		Rand:   rand.Reader,
+	}
 
-var (
-	cookieName = flag.String(
-		"browserid.cookie", "z", "Name of the cookie to store the ID.")
-	maxAge = flag.Duration(
-		"browserid.max-age", time.Hour*24*365*10, "Max age of the cookie.")
-	idLen = flag.Uint(
-		"browserid.len", 16, "Number of random bytes to use for ID.")
-)
+	flag.StringVar(
+		&c.Name,
+		name+".cookie",
+		cn,
+		"Name of the cookie to store the ID.",
+	)
+	flag.DurationVar(
+		&c.MaxAge,
+		name+".max-age",
+		tenYears,
+		"Max age of the cookie.",
+	)
+	flag.UintVar(
+		&c.Length,
+		name+".len",
+		length,
+		"Number of random bytes to use for ID.",
+	)
+	return c
+}
+
+type Logger interface {
+	Printf(fmt string, args ...interface{})
+}
+
+// Cookie provides access to the browserid cookie.
+type Cookie struct {
+	Name   string        // The name of the cookie.
+	MaxAge time.Duration // The life time of the cookie.
+	Length uint          // The length in bytes to use for the random id.
+	Logger Logger        // Used to log messages about invalid cookie values.
+	Rand   io.Reader     // Source of random bytes.
+}
 
 // Check if a ID has been set.
-func Has(r *http.Request) bool {
-	cookie, err := r.Cookie(*cookieName)
-	return err == nil && cookie != nil && isGood(cookie.Value)
+func (c *Cookie) Has(r *http.Request) bool {
+	cookie, err := r.Cookie(c.Name)
+	return err == nil && cookie != nil && c.isGood(cookie.Value)
 }
 
 // Get the ID, creating one if necessary.
-func Get(w http.ResponseWriter, r *http.Request) string {
-	cookie, err := r.Cookie(*cookieName)
+func (c *Cookie) Get(w http.ResponseWriter, r *http.Request) string {
+	cookie, err := r.Cookie(c.Name)
 	if err != nil && err != http.ErrNoCookie {
-		log.Printf("Error reading browserid cookie: %s", err)
+		c.Logger.Printf("Error reading browserid cookie: %s", err)
 	}
 	if cookie != nil {
-		if isGood(cookie.Value) {
+		if c.isGood(cookie.Value) {
 			return cookie.Value
 		}
-		log.Printf("Bad cookie value: %s", cookie.Value)
+		c.Logger.Printf("Bad cookie value: %s", cookie.Value)
 	}
-	id, err := genID()
-	if err != nil {
-		log.Printf("Error generating browserid: %s", err)
-		return FailID
-	}
+	id := c.genID()
 	cookie = &http.Cookie{
-		Name:    *cookieName,
+		Name:    c.Name,
 		Value:   id,
 		Path:    "/",
-		Expires: time.Now().Add(*maxAge),
-		Domain:  cookieDomain(trustforward.Host(r)),
+		Expires: time.Now().Add(c.MaxAge),
+		Domain:  c.cookieDomain(trustforward.Host(r)),
 	}
 	r.AddCookie(cookie)
 	http.SetCookie(w, cookie)
 	return id
 }
 
+func (c *Cookie) genID() string {
+	i := make([]byte, c.Length)
+	_, err := c.Rand.Read(i)
+	if err != nil {
+		panic(fmt.Sprintf("browserid: cookie.Rand.Read failed: %s", err))
+	}
+	return hex.EncodeToString(i)
+}
+
+func (c *Cookie) isGood(value string) bool {
+	return uint(len(value)/2) == c.Length
+}
+
 // Returns an empty string on failure to skip explicit domain.
-func cookieDomain(host string) string {
+func (c *Cookie) cookieDomain(host string) string {
 	if strings.Contains(host, ":") {
 		h, _, err := net.SplitHostPort(host)
 		if err != nil {
-			log.Printf("Error parsing host: %s", host)
+			c.Logger.Printf("Error parsing host: %s", host)
 			return ""
 		}
 		host = h
@@ -78,29 +130,10 @@ func cookieDomain(host string) string {
 	if net.ParseIP(host) != nil {
 		return ""
 	}
-	registered, err := domain.Registered(host)
+	registered, err := publicsuffix.EffectiveTLDPlusOne(host)
 	if err != nil {
-		log.Printf("Error extracting base domain: %s", err)
+		c.Logger.Printf("Error extracting base domain: %s", err)
 		return ""
 	}
 	return "." + registered
-}
-
-func genID() (string, error) {
-	i := make([]byte, *idLen)
-	_, err := rand.Read(i)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(i), nil
-}
-
-func isGood(value string) bool {
-	switch value {
-	case "":
-		return false
-	case FailID:
-		return false
-	}
-	return uint(len(value)/2) == *idLen
 }
