@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"code.google.com/p/go.net/publicsuffix"
 	"github.com/daaku/go.trustforward"
+	"golang.org/x/net/publicsuffix"
 )
 
 // Define a new Cookie via flags. For example, given a name like "browserid",
