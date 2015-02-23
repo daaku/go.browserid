@@ -4,11 +4,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/daaku/go.browserid"
 )
 
-var bid = browserid.CookieFlag("browserid")
+var bid = browserid.Cookie{
+	Name:   "z",
+	MaxAge: time.Hour * 24 * 365 * 10,
+	Length: 16,
+}
 
 func TestHas(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://example.com", nil)
