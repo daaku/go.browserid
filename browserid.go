@@ -6,7 +6,6 @@ package browserid
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -17,45 +16,6 @@ import (
 	"github.com/daaku/go.trustforward"
 	"golang.org/x/net/publicsuffix"
 )
-
-// Define a new Cookie via flags. For example, given a name like "browserid",
-// you will get these flags and default values along with the crypto.Rand
-// reader as Rand:
-//
-//   browserid.cookie=z
-//   browserid.length=16
-//   browserid.max-age=87600h
-func CookieFlag(name string) *Cookie {
-	const cn = "z"
-	const tenYears = time.Hour * 24 * 365 * 10
-	const length = 16
-	c := &Cookie{
-		Name:   cn,
-		MaxAge: tenYears,
-		Length: length,
-		Rand:   rand.Reader,
-	}
-
-	flag.StringVar(
-		&c.Name,
-		name+".cookie",
-		cn,
-		"Name of the cookie to store the ID.",
-	)
-	flag.DurationVar(
-		&c.MaxAge,
-		name+".max-age",
-		tenYears,
-		"Max age of the cookie.",
-	)
-	flag.UintVar(
-		&c.Length,
-		name+".len",
-		length,
-		"Number of random bytes to use for ID.",
-	)
-	return c
-}
 
 type Logger interface {
 	Printf(fmt string, args ...interface{})
@@ -103,7 +63,11 @@ func (c *Cookie) Get(w http.ResponseWriter, r *http.Request) string {
 
 func (c *Cookie) genID() string {
 	i := make([]byte, c.Length)
-	_, err := c.Rand.Read(i)
+	r := c.Rand
+	if r == nil {
+		r = rand.Reader
+	}
+	_, err := r.Read(i)
 	if err != nil {
 		panic(fmt.Sprintf("browserid: cookie.Rand.Read failed: %s", err))
 	}
