@@ -23,11 +23,12 @@ type Logger interface {
 
 // Cookie provides access to the browserid cookie.
 type Cookie struct {
-	Name   string        // The name of the cookie.
-	MaxAge time.Duration // The life time of the cookie.
-	Length uint          // The length in bytes to use for the random id.
-	Logger Logger        // Used to log messages about invalid cookie values.
-	Rand   io.Reader     // Source of random bytes.
+	Name      string        // The name of the cookie.
+	MaxAge    time.Duration // The life time of the cookie.
+	Length    uint          // The length in bytes to use for the random id.
+	Logger    Logger        // Used to log messages about invalid cookie values.
+	Rand      io.Reader     // Source of random bytes.
+	Forwarded *trustforward.Forwarded
 }
 
 // Check if a ID has been set.
@@ -54,7 +55,7 @@ func (c *Cookie) Get(w http.ResponseWriter, r *http.Request) string {
 		Value:   id,
 		Path:    "/",
 		Expires: time.Now().Add(c.MaxAge),
-		Domain:  c.cookieDomain(trustforward.Host(r)),
+		Domain:  c.cookieDomain(c.Forwarded.Host(r)),
 	}
 	r.AddCookie(cookie)
 	http.SetCookie(w, cookie)
