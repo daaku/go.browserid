@@ -17,6 +17,8 @@ import (
 	"golang.org/x/net/publicsuffix"
 )
 
+var emptyForwarded trustforward.Forwarded
+
 type Logger interface {
 	Printf(fmt string, args ...interface{})
 }
@@ -29,6 +31,13 @@ type Cookie struct {
 	Logger    Logger        // Used to log messages about invalid cookie values.
 	Rand      io.Reader     // Source of random bytes.
 	Forwarded *trustforward.Forwarded
+}
+
+func (c *Cookie) forwarded() *trustforward.Forwarded {
+	if c.Forwarded == nil {
+		return &emptyForwarded
+	}
+	return c.Forwarded
 }
 
 // Check if a ID has been set.
@@ -55,7 +64,7 @@ func (c *Cookie) Get(w http.ResponseWriter, r *http.Request) string {
 		Value:   id,
 		Path:    "/",
 		Expires: time.Now().Add(c.MaxAge),
-		Domain:  c.cookieDomain(c.Forwarded.Host(r)),
+		Domain:  c.cookieDomain(c.forwarded().Host(r)),
 	}
 	r.AddCookie(cookie)
 	http.SetCookie(w, cookie)
